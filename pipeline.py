@@ -106,7 +106,7 @@ def bigquery_all_player_stats(context) -> None:
 
 @io_manager(required_resource_keys={'gcs'})
 def gcs_parquet_io_manager(init_context):
-    return GCSParquetIOManager('fpl_dev_bucket', season = SEASON)
+    return GCSParquetIOManager('', season = SEASON)
 
 
 defos = Definitions(
