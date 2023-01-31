@@ -21,12 +21,12 @@ class GCSParquetIOManager(IOManager):
     dataframe. 
     
     '''
-    
-    
-    def __init__(self, bucket_name:str, prefix=""):
+    def __init__(self, bucket_name:str, prefix="", season = "2022"):
         self.bucket_name = bucket_name
         self.prefix = prefix
-        
+        self.season = season
+
+
     # Gets the url of parquet file we will be storing or loading
     def _get_gcs_url(self, context):
 
@@ -35,10 +35,9 @@ class GCSParquetIOManager(IOManager):
         else:
             file_name = context.asset_key.path[-1]  
         name = context.asset_key.path[-1]  
-        self.gs_uri = f"gs://{self.bucket_name}/{name}/{self.prefix}{file_name}.parquet"
+        self.gs_uri = f"gs://{self.bucket_name}/{self.season}/{name}/{self.prefix}{file_name}.parquet"
         return self.gs_uri
 
-      
     # This method loads the parquet file to gcs
     def handle_output(self, context, df:pd.DataFrame):
         if df is None:
@@ -51,12 +50,9 @@ class GCSParquetIOManager(IOManager):
 
         df.to_parquet(file_name)
 
-        
     # This method loads the parquet file into the next asset.
     def load_input(self, context) -> pd.DataFrame:
 
         df = pd.read_parquet(self._get_gcs_url(context))
 
         return df
-
-
