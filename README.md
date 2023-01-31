@@ -1,1 +1,1 @@
-# Using Dagster to help me beat my friends in FPL
+# Using Dagster to Beat my Friends in FPL
