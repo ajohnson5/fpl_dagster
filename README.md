@@ -8,7 +8,6 @@ This repository contains a dagster implementation which loads Fantasy Premier Le
 
 Quite a few of my friends participate in Fantasy Premier League (FPL) each season where the winner of their mini-league wins some money and more importantly, bragging rights. While I am not participating this season, I thought now would be a good time to start preparing for next season. I am going to need all the help I can get to win so I thought I should make use of the data that FPL provide through numerous api endpoints to supplement my ball knowledge. Also since I am a Data Engineer I thought it would be a good opportunity to develop my skills with Dagster, an open source orchestrator. 
 
----
 
 ## Contents
 
@@ -17,13 +16,12 @@ Quite a few of my friends participate in Fantasy Premier League (FPL) each seaso
 *   Environment
 *   Future Work
 
----
+
 
 ## Dagster
 
 For those of you unfamiliar Dagster, it is an open source orchestrator I was interested in becming more familiar mainly because of its declarative approach. Note I am new to Dagster and while I am trying my best to follow best practices I cannot promise the solution I have created is "optimal". Also note that this is a work in progress.
 
----
 
 
 ## Requirements
