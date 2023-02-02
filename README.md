@@ -22,7 +22,7 @@ Quite a few of my friends participate in Fantasy Premier League (FPL) each seaso
 
 For those of you unfamiliar Dagster, it is an open source orchestrator I was interested in becming more familiar mainly because of its declarative approach. Note I am new to Dagster and while I am trying my best to follow best practices I cannot promise the solution I have created is "optimal". Also note that this is a work in progress.
 
-
+![Dagster Asset Lineage](https://user-images.githubusercontent.com/99501368/216422091-b32742a7-4ac9-41a0-9841-07fe0f812b6f.PNG)
 
 ## Requirements
 
