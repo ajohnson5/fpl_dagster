@@ -15,7 +15,6 @@ Quite a few of my friends participate in Fantasy Premier League (FPL) each seaso
 The goal for designing this project was to be able to retrieve the performance of all players, including players in my team, for each gameweek to track the performance of my team and other players. This would hopefully allow me to identify any underperforming players in my team and swap them in for players performing well. To do this I need the stats of each player for each completed gameweek with the players which are in my team for that gameweek flagged.
 
 
-
 ## Design
 
 All of the data we need is not available in a single endpoint and so we have to combine data from various endpoints to obtain our desired outcome. The first data we need is a list of all of the active players in the Premier League with their unique id, name and team name. This is obtained from our first asset "player_info" and is stored as a single parquet file in GCS. Note that this can only really change during transfer periods or if a new player is rotated into a Premier league squad. We do not need to keep track of the history of this file so we can overwrite the output each time.
@@ -31,10 +30,9 @@ The design of this project can be summarised into these simple steps:
 
 ## Dagster
 
-For those of you unfamiliar Dagster, it is an open source orchestrator I was interested in becoming more familiar with it mainly because of its declarative approach.  This declarative approach is enabled by the Software-defined asset, or asset for short, which is an object in persistent storage such as a Parquet file or database table. In my project, we can summarise my assets as fitting into two categories:
+For those of you unfamiliar Dagster, it is an open source orchestrator I was interested in becoming more familiar with it mainly because of its declarative approach.  This declarative approach is enabled by the Software-defined asset, or asset for short, which is an object in persistent storage such as a Parquet file or database table. The asset lineage for my project can be seen below. 
 
-1. Files stored in Parquet format
-2. Tables in BigQuery
+![Dagster asset lineage](https://user-images.githubusercontent.com/99501368/216422091-b32742a7-4ac9-41a0-9841-07fe0f812b6f.PNG)
 
 
 
