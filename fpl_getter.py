@@ -13,7 +13,7 @@ def gw_stats_getter(gw):
 
     player_list = []
     for player in req['elements']:
-        player_list.append(dict(id = player['id'],**player['stats']))   
+        player_list.append(dict(id = player['id'],gameweek = gw,**player['stats']))   
     return player_list
 
 def gw_fixture_getter(deadline):
@@ -63,7 +63,7 @@ def player_getter():
     player_list = []
     for element in player_req['elements']:
         dict_ = dict(id = element['id'], first_name = element['first_name'],second_name = element['second_name'],
-            team = element['team'], team_code = element['team_code'])
+            team_id = element['team'])
         player_list.append(dict_)   
     return player_list
 
@@ -78,6 +78,6 @@ def team_getter():
     team_req = requests.get(team_url).json()  
     team_list = []
     for team in team_req['teams']:
-        team_list.append(team)   
+        team_list.append(dict(team_id = team['id'],team_name= team['name']))   
     return team_list
 
