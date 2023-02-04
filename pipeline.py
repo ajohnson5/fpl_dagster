@@ -19,7 +19,9 @@ from fpl_getter import (
     team_getter
 )
 
+#Define season for GCS directory structure
 SEASON = '2022'
+#Define gameweek partition
 gameweek_list = [str(gw) for gw in range(1,39)]
 gameweek_partitions = StaticPartitionsDefinition(gameweek_list)
 
@@ -30,35 +32,53 @@ project_bucket = os.environ['PROJECT_BUCKET']
 
 @asset(io_manager_key='gcs_io_manager')
 def player_info() -> pd.DataFrame:
-
+    """Uses FPL API to create DataFrame containing general player data for all Premier League players
+    such as name and team_name"""
     player_df = pd.DataFrame(player_getter())
     team_df = pd.DataFrame(team_getter())
 
     merged_df = player_df.merge(team_df, how = 'left', on ='team_id')
     
-
     return merged_df
 
 
 @asset(partitions_def=gameweek_partitions,io_manager_key='gcs_io_manager')
 def gw_summary(context, player_info) -> pd.DataFrame:
-    '''
-    Summary - This asset returns a pd.DataFrame containing all player stats for a specified gameweek
+    """
+    Statically paritioned asset which creates DataFrame containing gameweek stats for all active players
+    in gameweek = partition.
 
-    Returns - Returns a pd.DataFrame containing player summary data for a specific gameweek
-    
-    '''
+    args 
+    - context: context object passed to access partition key for each run
+    - player_info: DataFrame containing general player info such as name and team name. 
+    """
+
     gw_df = pd.DataFrame(gw_stats_getter(context.partition_key))
-
     gw_df = gw_df.merge(player_info, how = 'left',on = 'id')
+
+    upcoming_fix_df = pd.DataFrame(gw_fixture_getter(context.partition_key))
+    team_df = pd.DataFrame(team_getter())
+
+
+
+    upcoming_fix_df = upcoming_fix_df.merge(team_df, how = 'left',left_on='team_against_id',right_on='team_id',
+        suffixes=('','_x'))
+    upcoming_fix_df.drop(columns=['team_id_x','team_against_id'], inplace = True)
+    upcoming_fix_df.rename(columns={'team_name':'team_to_play'},inplace = True)
+
+    for i in range(1,6):
+        gw_df = gw_df.merge(upcoming_fix_df[upcoming_fix_df['gw_to_play']==i], how = 'left', on='team_id',
+            suffixes=('','_x'))
+        gw_df.rename(columns={'team_to_play':f'team_to_play_{i}'},inplace = True)
+        gw_df.drop(columns=['gw_to_play'],inplace = True)
+        # gw_df.rename(columns ={})
 
     return gw_df
 
 
 @asset(non_argument_deps = {'gw_summary'},required_resource_keys={"bq_res"})
 def bigquery_gw_summary(context) -> None:
-
-    # Big query configuring variables
+    """Loads all gw_summary Parquet files into BigQuery Table"""
     
     #Define job config for BQ, note we overwrite the existing table
     job_config = bigquery.LoadJobConfig(
@@ -66,7 +86,7 @@ def bigquery_gw_summary(context) -> None:
         write_disposition="WRITE_TRUNCATE"
     )
 
-    #uri to load all of the parquet files in the gw_summary directory
+    #uri to batch load all of the parquet files in the gw_summary directory
     batch_uri = f'gs://{project_bucket}/{SEASON}/gw_summary/*.parquet'
 
     load_job = context.resources.bq_res.load_table_from_uri(
@@ -84,5 +104,4 @@ def gcs_parquet_io_manager(init_context):
 
 defos = Definitions(
     assets=[player_info, gw_summary, bigquery_gw_summary],
-    resources={"gcs_io_manager": gcs_parquet_io_manager,"gcs": gcs_resource,
-     "bq_res":bigquery_resource})
+    resources={"gcs_io_manager": gcs_parquet_io_manager,"gcs": gcs_resource,"bq_res":bigquery_resource})

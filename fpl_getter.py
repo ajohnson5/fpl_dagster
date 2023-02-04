@@ -16,21 +16,23 @@ def gw_stats_getter(gw):
         player_list.append(dict(id = player['id'],gameweek = gw,**player['stats']))   
     return player_list
 
-def gw_fixture_getter(deadline):
+def gw_fixture_getter(gw):
     '''
-    Summary - Function returns the list of fixtures for the next gameweek.
-
+    Summary - Function returns the next 5 fixtures for each team for each gameweek
     Returns - List of fixtures for next gameweek.
     '''
-
-    fix_url = 'https://fantasy.premierleague.com/api/fixtures/?future=1'
-    fix_req = requests.get(fix_url).json()
-
     fixture_list = []
-    for fixture in fix_req:
-        if fixture['kickoff_time'] > deadline:
-            break
-        fixture_list.append(fixture)  
+
+    for i in range(1,6):
+        tmp_gw = int(gw)+i
+        fix_url = f'https://fantasy.premierleague.com/api/fixtures/?event={tmp_gw}'
+        fix_req = requests.get(fix_url).json()
+        for fixture in fix_req:
+
+            fixture_list.append(dict(gw_to_play = i,team_id = fixture['team_h'], team_against_id=fixture['team_a'])) 
+            fixture_list.append(dict(gw_to_play = i,team_id = fixture['team_a'], team_against_id=fixture['team_h'])) 
+
+
     return fixture_list
 
 
@@ -63,7 +65,7 @@ def player_getter():
     player_list = []
     for element in player_req['elements']:
         dict_ = dict(id = element['id'], first_name = element['first_name'],second_name = element['second_name'],
-            team_id = element['team'])
+            full_name = element['first_name']+' '+element['second_name'],team_id = element['team'])
         player_list.append(dict_)   
     return player_list
 
@@ -81,3 +83,17 @@ def team_getter():
         team_list.append(dict(team_id = team['id'],team_name= team['name']))   
     return team_list
 
+if __name__=='__main__':
+    gw_df = pd.DataFrame(gw_fixture_getter(10))
+    # team_df = pd.DataFrame(team_getter())
+    # df = pd.DataFrame(gw_stats_getter(10))
+
+    # new_df = gw_df.merge(team_df, how = 'left',left_on='team_against_id',right_on='team_id',
+    #     suffixes=('','_x'))
+    # new_df.drop(columns=['team_id_x','team_against_id'], inplace = True)
+    # new_df.rename(columns={'team_name':'team_to_play'},inplace = True)
+
+
+
+    
+    # print(final_df.head(25))
