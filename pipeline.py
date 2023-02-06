@@ -3,7 +3,8 @@ from dagster import (
     Definitions,
     io_manager,
     StaticPartitionsDefinition,
-    resource
+    resource,
+    Output
 )
 from dagster_gcp.gcs import gcs_resource
 from dagster_gcp import bigquery_resource
@@ -14,7 +15,6 @@ from gcs_parquet_io_manager import GCSParquetIOManager
 from fpl_getter import (
     gw_stats_getter,
     gw_fixture_getter,
-    gw_deadline_getter,
     player_getter,
     team_getter
 )
@@ -25,6 +25,7 @@ SEASON = '2022'
 gameweek_list = [str(gw) for gw in range(1,39)]
 gameweek_partitions = StaticPartitionsDefinition(gameweek_list)
 
+#GCP variables
 project_ID = os.environ['PROJECT_ID']
 project_dataset = os.environ['PROJECT_DATASET']
 project_bucket = os.environ['PROJECT_BUCKET']
@@ -38,11 +39,10 @@ def player_info() -> pd.DataFrame:
     team_df = pd.DataFrame(team_getter())
 
     merged_df = player_df.merge(team_df, how = 'left', on ='team_id')
-    
     return merged_df
 
 
-@asset(partitions_def=gameweek_partitions,io_manager_key='gcs_io_manager')
+@asset(partitions_def=gameweek_partitions,io_manager_key='gcs_io_manager', output_required=False)
 def gw_summary(context, player_info) -> pd.DataFrame:
     """
     Statically paritioned asset which creates DataFrame containing gameweek stats for all active players
@@ -53,27 +53,28 @@ def gw_summary(context, player_info) -> pd.DataFrame:
     - player_info: DataFrame containing general player info such as name and team name. 
     """
 
-    gw_df = pd.DataFrame(gw_stats_getter(context.partition_key))
-    gw_df = gw_df.merge(player_info, how = 'left',on = 'id')
+    #If gameweek has not occured then nothing happends
+    if gw_stats_getter(context.partition_key) != []:
+        gw_df = pd.DataFrame(gw_stats_getter(context.partition_key))
+        gw_df = gw_df.merge(player_info, how = 'left',on = 'id')
 
-    upcoming_fix_df = pd.DataFrame(gw_fixture_getter(context.partition_key))
-    team_df = pd.DataFrame(team_getter())
+        upcoming_fix_df = pd.DataFrame(gw_fixture_getter(context.partition_key))
+        team_df = pd.DataFrame(team_getter())
 
 
+        #Add the 5 upcoming fixtures for each player
+        upcoming_fix_df = upcoming_fix_df.merge(team_df, how = 'left',left_on='team_against_id',
+            right_on='team_id',suffixes=('','_x'))
+        upcoming_fix_df.drop(columns=['team_id_x','team_against_id'], inplace = True)
+        upcoming_fix_df.rename(columns={'team_name':'team_to_play'},inplace = True)
 
-    upcoming_fix_df = upcoming_fix_df.merge(team_df, how = 'left',left_on='team_against_id',right_on='team_id',
-        suffixes=('','_x'))
-    upcoming_fix_df.drop(columns=['team_id_x','team_against_id'], inplace = True)
-    upcoming_fix_df.rename(columns={'team_name':'team_to_play'},inplace = True)
+        for i in range(1,6):
+            gw_df = gw_df.merge(upcoming_fix_df[upcoming_fix_df['gw_to_play']==i], how = 'left', on='team_id',
+                suffixes=('','_x'))
+            gw_df.rename(columns={'team_to_play':f'team_to_play_{i}'},inplace = True)
+            gw_df.drop(columns=['gw_to_play'],inplace = True)
 
-    for i in range(1,6):
-        gw_df = gw_df.merge(upcoming_fix_df[upcoming_fix_df['gw_to_play']==i], how = 'left', on='team_id',
-            suffixes=('','_x'))
-        gw_df.rename(columns={'team_to_play':f'team_to_play_{i}'},inplace = True)
-        gw_df.drop(columns=['gw_to_play'],inplace = True)
-        # gw_df.rename(columns ={})
-
-    return gw_df
+        yield Output(gw_df)
 
 
 @asset(non_argument_deps = {'gw_summary'},required_resource_keys={"bq_res"})
