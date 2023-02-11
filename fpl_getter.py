@@ -1,5 +1,5 @@
 import requests 
-
+import pandas as pd
 
 def gw_stats_getter(gw):
     """Returns a list of dictionaries of each players stats for the specified gameweek"""
@@ -17,7 +17,7 @@ def gw_fixture_getter(gw):
 
     fixture_list = []
     for i in range(1,6):
-        tmp_gw = int(gw)+i
+        tmp_gw = gw+i
         fix_url = f'https://fantasy.premierleague.com/api/fixtures/?event={tmp_gw}'
         fix_req = requests.get(fix_url).json()
         for fixture in fix_req:
@@ -35,7 +35,7 @@ def player_getter():
     player_list = []
     for element in player_req['elements']:
         dict_ = dict(id = element['id'], first_name = element['first_name'],second_name = element['second_name'],
-            full_name = element['first_name']+'     '+element['second_name'],team_id = element['team'])
+            full_name = element['first_name']+' '+element['second_name'],team_id = element['team'])
         player_list.append(dict_)   
     return player_list
 
@@ -49,3 +49,16 @@ def team_getter():
     for team in team_req['teams']:
         team_list.append(dict(team_id = team['id'],team_name= team['name']))   
     return team_list
+
+
+if __name__ == '__main__':
+    df= pd.DataFrame(gw_fixture_getter(21))
+
+    df_1 = df[df['gw_to_play']==1]
+    df_1['team_id']= df_1['team_id'].astype(str)
+    df_1['team_against_id']= df_1['team_against_id'].astype(str)
+
+    print(df_1.head(40))
+
+    print(df_1.groupby(['gw_to_play','team_id'])['team_against_id'].apply(' '.join).reset_index())
+    

@@ -58,7 +58,7 @@ def gw_summary(context, player_info) -> pd.DataFrame:
         gw_df = pd.DataFrame(gw_stats_getter(context.partition_key))
         gw_df = gw_df.merge(player_info, how = 'left',on = 'id')
 
-        upcoming_fix_df = pd.DataFrame(gw_fixture_getter(context.partition_key))
+        upcoming_fix_df = pd.DataFrame(gw_fixture_getter(int(context.partition_key)))
         team_df = pd.DataFrame(team_getter())
 
 
@@ -67,6 +67,11 @@ def gw_summary(context, player_info) -> pd.DataFrame:
             right_on='team_id',suffixes=('','_x'))
         upcoming_fix_df.drop(columns=['team_id_x','team_against_id'], inplace = True)
         upcoming_fix_df.rename(columns={'team_name':'team_to_play'},inplace = True)
+
+        #Group by gw and team_id so if a team has a double gameweek then rows are combined
+        #Concatenate opposition and seperate by a comma.
+        upcoming_fix_df = upcoming_fix_df.groupby(['gw_to_play','team_id'])['team_to_play'].apply(', '.join).reset_index()
+
 
         for i in range(1,6):
             gw_df = gw_df.merge(upcoming_fix_df[upcoming_fix_df['gw_to_play']==i], how = 'left', on='team_id',
