@@ -56,23 +56,30 @@ def gw_summary(context, player_info) -> pd.DataFrame:
     #If gameweek has not occured then nothing happends
     if gw_stats_getter(context.partition_key) != []:
         gw_df = pd.DataFrame(gw_stats_getter(context.partition_key))
-        gw_df = gw_df.merge(player_info, how = 'left',on = 'id')
 
+        #Convert some stats columns to floats (FPL API stores them as strings)
+        cols_to_convert_int = ['influence','creativity','threat','ict_index','expected_goals',
+            'expected_assists','expected_goal_involvements','expected_goals_conceded']
+        gw_df[cols_to_convert_int] = gw_df[cols_to_convert_int].apply(pd.to_numeric)
+
+        #Merge gw_df with player_info to get player_name, team_name, etc.
+        gw_df = gw_df.merge(player_info, how = 'left',on = 'id')
+        
+        #Get this gameweeks upcoming fixtures for next 5 gameweeks.
         upcoming_fix_df = pd.DataFrame(gw_fixture_getter(int(context.partition_key)))
         team_df = pd.DataFrame(team_getter())
 
-
-        #Add the 5 upcoming fixtures for each player
+        #Merge upcoming fixtures to team_names to get names of opposition teams
         upcoming_fix_df = upcoming_fix_df.merge(team_df, how = 'left',left_on='team_against_id',
             right_on='team_id',suffixes=('','_x'))
         upcoming_fix_df.drop(columns=['team_id_x','team_against_id'], inplace = True)
         upcoming_fix_df.rename(columns={'team_name':'team_to_play'},inplace = True)
 
         #Group by gw and team_id so if a team has a double gameweek then rows are combined
-        #Concatenate opposition and seperate by a comma.
+        #Concatenate opposition team names for double games weeks (seperated by comma)
         upcoming_fix_df = upcoming_fix_df.groupby(['gw_to_play','team_id'])['team_to_play'].apply(', '.join).reset_index()
 
-
+        #Add upcoming fixtures for each player (iterate through upcoming gameweeks)
         for i in range(1,6):
             gw_df = gw_df.merge(upcoming_fix_df[upcoming_fix_df['gw_to_play']==i], how = 'left', on='team_id',
                 suffixes=('','_x'))

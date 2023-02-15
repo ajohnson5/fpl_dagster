@@ -40,7 +40,9 @@ class GCSParquetIOManager(IOManager):
 
         file_name = self._get_gcs_url(context)
 
-        df.to_parquet(file_name)
+        #Index false as we will be batch loading multiple parquet files in BigQuery and if we have
+        #the index then final table will have a __index_level_0__ column added.
+        df.to_parquet(file_name, index = False)
 
 
     def load_input(self, context) -> pd.DataFrame:

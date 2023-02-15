@@ -8,7 +8,7 @@ def gw_stats_getter(gw):
     req = requests.get(url).json()  
     player_list = []
     for player in req['elements']:
-        player_list.append(dict(id = player['id'],gameweek = gw,**player['stats']))   
+        player_list.append(dict(id = player['id'],gameweek = int(gw),**player['stats']))   
     return player_list
 
 
