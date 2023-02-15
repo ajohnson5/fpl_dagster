@@ -8,27 +8,19 @@ from dagster import (
     io_manager,
 )
 import gcsfs
-
-# from dagster._utils.backoff import backoff
-# from google.api_core.exceptions import Forbidden, ServiceUnavailable, TooManyRequests
 from google.cloud import storage
 
 class GCSParquetIOManager(IOManager):
-
-    '''
-    Custom IO Manager which stores parquet files in GCS and takes data in as a 
-    dataframe. 
+    '''Custom IO Manager which stores parquet files in GCS and takes data in as a dataframe. '''
     
-    '''
     def __init__(self, bucket_name:str, prefix="", season = "2022"):
         self.bucket_name = bucket_name
         self.prefix = prefix
         self.season = season
 
 
-    # Gets the url of parquet file we will be storing or loading
     def _get_gcs_url(self, context):
-
+        """Creates and returns GCS uri for loading and storing outputs"""
         if context.has_partition_key and context.has_asset_partitions:
             file_name = f"{context.asset_key.path[-1]}_{context.asset_partition_key}"
         else:
@@ -37,8 +29,9 @@ class GCSParquetIOManager(IOManager):
         self.gs_uri = f"gs://{self.bucket_name}/{self.season}/{name}/{self.prefix}{file_name}.parquet"
         return self.gs_uri
 
-    # This method loads the parquet file to gcs
+
     def handle_output(self, context, df:pd.DataFrame):
+        """Stores pandas DataFrames as Parquet files in GCS"""
         if df is None:
             return
         
@@ -47,10 +40,13 @@ class GCSParquetIOManager(IOManager):
 
         file_name = self._get_gcs_url(context)
 
-        df.to_parquet(file_name)
+        #Index false as we will be batch loading multiple parquet files in BigQuery and if we have
+        #the index then final table will have a __index_level_0__ column added.
+        df.to_parquet(file_name, index = False)
 
-    # This method loads the parquet file into the next asset.
+
     def load_input(self, context) -> pd.DataFrame:
+        """Reads data from GCS uri as pandas DataFrames"""
 
         df = pd.read_parquet(self._get_gcs_url(context))
 
