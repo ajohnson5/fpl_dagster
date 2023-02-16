@@ -51,14 +51,24 @@ def team_getter():
     return team_list
 
 
-if __name__ == '__main__':
-    df= pd.DataFrame(gw_fixture_getter(21))
+def gw_my_fpl_team(gw, manager_id):
+    my_fpl_url = f"https://fantasy.premierleague.com/api/entry/{manager_id}/event/{gw}/picks/"
+    my_fpl_req = requests.get(my_fpl_url).json()
+    my_fpl_list = []
+    try:
+        for player in my_fpl_req['picks']:
+            my_fpl_list.append(dict(id = player['element'],position=player['position'],
+            multiplier = player['multiplier'],is_captain=int(player['is_captain']),
+            is_vice_captain=int(player['is_vice_captain'])))
+        return my_fpl_list
+    except KeyError:
+        return None
 
-    df_1 = df[df['gw_to_play']==1]
-    df_1['team_id']= df_1['team_id'].astype(str)
-    df_1['team_against_id']= df_1['team_against_id'].astype(str)
+        
 
-    print(df_1.head(40))
 
-    print(df_1.groupby(['gw_to_play','team_id'])['team_against_id'].apply(' '.join).reset_index())
+
+
+# if __name__ == '__main__':
+
     
