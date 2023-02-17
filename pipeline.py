@@ -68,18 +68,18 @@ def gw_summary(context, player_info) -> pd.DataFrame:
         #Merge gw_df with player_info to get player_name, team_name, etc.
         gw_df = gw_df.merge(player_info, how = 'left',on = 'id')
 
-        #Add information for my own players
-
+        #Use gw_my_fpl_team func to get info on my team for given gameweek
         my_fpl_team = gw_my_fpl_team(context.partition_key, manager_ID)
 
+        # If there exists no data for my team on specified gameweek then set columns to be null
+        #Otherwise merge resulting dataframe to gw_df dataframe.
         if my_fpl_team is None:
-            gw_df[['position',  'multiplier',  'is_captain',  'is_vice_captain']] = np.NaN 
+            gw_df[['my_team_position',  'multiplier',  'is_captain',  'is_vice_captain']] = np.NaN 
         else:
             my_fpl_team_df = pd.DataFrame(my_fpl_team)
             gw_df = gw_df.merge(my_fpl_team_df, how = 'left', on = 'id')
 
 
-        
         #Get this gameweeks upcoming fixtures for next 5 gameweeks.
         upcoming_fix_df = pd.DataFrame(gw_fixture_getter(int(context.partition_key)))
         team_df = pd.DataFrame(team_getter())

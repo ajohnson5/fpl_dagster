@@ -34,8 +34,9 @@ def player_getter():
     player_req = requests.get(player_url).json()  
     player_list = []
     for element in player_req['elements']:
-        dict_ = dict(id = element['id'], first_name = element['first_name'],second_name = element['second_name'],
-            full_name = element['first_name']+' '+element['second_name'],team_id = element['team'])
+        dict_ = dict(id = element['id'], first_name = element['first_name'],
+            second_name = element['second_name'],full_name = element['first_name']+' '+element['second_name'],
+            team_id = element['team'], position = element['element_type'])
         player_list.append(dict_)   
     return player_list
 
@@ -57,7 +58,7 @@ def gw_my_fpl_team(gw, manager_id):
     my_fpl_list = []
     try:
         for player in my_fpl_req['picks']:
-            my_fpl_list.append(dict(id = player['element'],position=player['position'],
+            my_fpl_list.append(dict(id = player['element'],my_team_position=player['position'],
             multiplier = player['multiplier'],is_captain=int(player['is_captain']),
             is_vice_captain=int(player['is_vice_captain'])))
         return my_fpl_list
@@ -66,9 +67,12 @@ def gw_my_fpl_team(gw, manager_id):
 
         
 
+if __name__ == '__main__':
+    df = pd.DataFrame(player_getter())
+    print(df.head(10))
+    null_df = df[df['second_name']=='Saliba']
+
+    print(null_df.head(10))
 
 
-
-# if __name__ == '__main__':
-
-    
+    print(df.dtypes)
