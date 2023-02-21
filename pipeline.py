@@ -9,6 +9,7 @@ from dagster import (
 from dagster_gcp.gcs import gcs_resource
 from dagster_gcp import bigquery_resource
 import pandas as pd
+import numpy as np
 import os
 from google.cloud import bigquery
 from gcs_parquet_io_manager import GCSParquetIOManager
@@ -16,7 +17,8 @@ from fpl_getter import (
     gw_stats_getter,
     gw_fixture_getter,
     player_getter,
-    team_getter
+    team_getter,
+    gw_my_fpl_team
 )
 
 #Define season for GCS directory structure
@@ -29,6 +31,7 @@ gameweek_partitions = StaticPartitionsDefinition(gameweek_list)
 project_ID = os.environ['PROJECT_ID']
 project_dataset = os.environ['PROJECT_DATASET']
 project_bucket = os.environ['PROJECT_BUCKET']
+manager_ID = os.environ['MANAGER_ID']
 
 
 @asset(io_manager_key='gcs_io_manager')
@@ -64,7 +67,19 @@ def gw_summary(context, player_info) -> pd.DataFrame:
 
         #Merge gw_df with player_info to get player_name, team_name, etc.
         gw_df = gw_df.merge(player_info, how = 'left',on = 'id')
-        
+
+        #Use gw_my_fpl_team func to get info on my team for given gameweek
+        my_fpl_team = gw_my_fpl_team(context.partition_key, manager_ID)
+
+        # If there exists no data for my team on specified gameweek then set columns to be null
+        #Otherwise merge resulting dataframe to gw_df dataframe.
+        if my_fpl_team is None:
+            gw_df[['my_team_position',  'multiplier',  'is_captain',  'is_vice_captain']] = np.NaN 
+        else:
+            my_fpl_team_df = pd.DataFrame(my_fpl_team)
+            gw_df = gw_df.merge(my_fpl_team_df, how = 'left', on = 'id')
+
+
         #Get this gameweeks upcoming fixtures for next 5 gameweeks.
         upcoming_fix_df = pd.DataFrame(gw_fixture_getter(int(context.partition_key)))
         team_df = pd.DataFrame(team_getter())
