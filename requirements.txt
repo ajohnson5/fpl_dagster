@@ -1,0 +1,9 @@
+dagster
+dagit
+dagster-docker
+dagster_gcp
+pandas
+numpy
+google.cloud
+requests 
+gcsfs

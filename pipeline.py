@@ -129,7 +129,6 @@ def bigquery_gw_summary(context) -> None:
 def gcs_parquet_io_manager(init_context):
     return GCSParquetIOManager(project_bucket, season = SEASON)
 
-
 defos = Definitions(
     assets=[player_info, gw_summary, bigquery_gw_summary],
     resources={"gcs_io_manager": gcs_parquet_io_manager,"gcs": gcs_resource,"bq_res":bigquery_resource})
