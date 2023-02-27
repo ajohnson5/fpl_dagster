@@ -127,17 +127,18 @@ def bigquery_gw_summary(context) -> None:
     return None
 
 
-
+#Resource to pass google cloud credentials to assets and io_manager
 @resource(config_schema={"project_bucket":StringSource, "project_dataset":StringSource})
 def google_cloud_config(init_context):
     return dict(bucket = init_context.resource_config['project_bucket'], dataset = init_context.resource_config['project_dataset'])
+
 
 @io_manager(required_resource_keys={'gcs', 'google_config'})
 def gcs_parquet_io_manager(init_context):
     return GCSParquetIOManager(bucket_name = init_context.resources.google_config['bucket'], season = SEASON)
 
 
-
+#Configure resources for the deployment environments (development/production)
 resource_env = {
     "development":{
         "google_config": google_cloud_config.configured(
@@ -166,13 +167,7 @@ resource_env = {
 
 
 
-
-
-
-
-
-
-
+#Define definitions using the assets and resources for the specified deployment_environment
 defos = Definitions(
     assets=[player_info, gw_summary, bigquery_gw_summary],
     resources=resource_env[deployment_environment])
