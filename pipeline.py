@@ -5,6 +5,8 @@ from dagster import (
     StaticPartitionsDefinition,
     resource,
     Output,
+    configured,
+    StringSource
 )
 from dagster_gcp.gcs import gcs_resource
 from dagster_gcp import bigquery_resource
@@ -27,12 +29,11 @@ SEASON = "2022"
 gameweek_list = [str(gw) for gw in range(1, 39)]
 gameweek_partitions = StaticPartitionsDefinition(gameweek_list)
 
-# GCP variables
-project_ID = os.environ["PROJECT_ID"]
-project_dataset = os.environ["PROJECT_DATASET"]
-project_bucket = os.environ["PROJECT_BUCKET"]
-manager_ID = os.environ["MANAGER_ID"]
 
+#Fixed variables (Regardless of environment)
+project_ID = os.getenv('PROJECT_ID')
+manager_ID = os.getenv('MANAGER_ID')
+deployment_environment = os.getenv("DAGSTER_DEPLOYMENT", "development")
 
 @asset(io_manager_key="gcs_io_manager")
 def player_info() -> pd.DataFrame:
@@ -130,37 +131,71 @@ def gw_summary(context, player_info) -> pd.DataFrame:
         yield Output(gw_df)
 
 
-@asset(non_argument_deps={"gw_summary"}, required_resource_keys={"bq_res"})
+@asset(non_argument_deps = {'gw_summary'},required_resource_keys={"bq_res", "google_config"})
 def bigquery_gw_summary(context) -> None:
     """Loads all gw_summary Parquet files into BigQuery Table"""
+    
+    gc_config = context.resources.google_config
+    #Define job config for BQ, note we overwrite the existing table
 
-    # Define job config for BQ, note we overwrite the existing table
     job_config = bigquery.LoadJobConfig(
         source_format=bigquery.SourceFormat.PARQUET, write_disposition="WRITE_TRUNCATE"
     )
 
-    # uri to batch load all of the parquet files in the gw_summary directory
-    batch_uri = f"gs://{project_bucket}/{SEASON}/gw_summary/*.parquet"
+    #uri to batch load all of the parquet files in the gw_summary directory
+    batch_uri = f'gs://{gc_config["bucket"]}/{SEASON}/gw_summary/*.parquet'
 
     load_job = context.resources.bq_res.load_table_from_uri(
-        batch_uri,
-        f"{project_ID}.{project_dataset}.{SEASON}_gw_summary",
-        job_config=job_config,
-    )
+        batch_uri, 
+        f'{project_ID}.{gc_config["dataset"]}.{SEASON}_gw_summary',
+        job_config=job_config
+    ) 
 
     return None
 
 
-@io_manager(required_resource_keys={"gcs"})
+
+#Resource to pass google cloud credentials to assets and io_manager
+@resource(config_schema={"project_bucket":StringSource, "project_dataset":StringSource})
+def google_cloud_config(init_context):
+    return dict(bucket = init_context.resource_config['project_bucket'], dataset = init_context.resource_config['project_dataset'])
+
+
+@io_manager(required_resource_keys={'gcs', 'google_config'})
 def gcs_parquet_io_manager(init_context):
-    return GCSParquetIOManager(project_bucket, season=SEASON)
+    return GCSParquetIOManager(bucket_name = init_context.resources.google_config['bucket'], season = SEASON)
 
 
-defos = Definitions(
-    assets=[player_info, gw_summary, bigquery_gw_summary],
-    resources={
+#Configure resources for the deployment environments (development/production)
+resource_env = {
+    "development":{
+        "google_config": google_cloud_config.configured(
+            {
+                "project_bucket": {"env": "PROJECT_BUCKET_DEV"},
+                "project_dataset": {"env": "PROJECT_DATASET_DEV"}
+            }
+        ),
         "gcs_io_manager": gcs_parquet_io_manager,
         "gcs": gcs_resource,
-        "bq_res": bigquery_resource,
+        "bq_res":bigquery_resource
     },
-)
+    "production":{
+            "google_config": google_cloud_config.configured(
+            {
+                "project_bucket": {"env": "PROJECT_BUCKET_PROD"},
+                "project_dataset": {"env": "PROJECT_DATASET_PROD"}
+            }
+        ),
+        "gcs_io_manager": gcs_parquet_io_manager,
+        "gcs": gcs_resource,
+        "bq_res":bigquery_resource
+    }
+
+}
+
+
+
+#Define definitions using the assets and resources for the specified deployment_environment
+defos = Definitions(
+    assets=[player_info, gw_summary, bigquery_gw_summary],
+    resources=resource_env[deployment_environment])

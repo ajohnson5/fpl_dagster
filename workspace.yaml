@@ -1,4 +1,10 @@
-# workspace.yaml
-
+# State code locations for dagster
 load_from:
-  - python_file: pipeline.py
+  #grpc_server code location for docker-compose deployment
+  - grpc_server:
+      host: docker_example_user_code
+      port: 4000
+      location_name: "example_user_code"
+  #Code location for local testing (uncomment code below and comment above)
+# load_from:
+#   - python_file: pipeline.py

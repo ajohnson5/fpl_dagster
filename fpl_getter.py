@@ -90,3 +90,6 @@ def gw_my_fpl_team(gw, manager_id):
         return my_fpl_list
     except KeyError:
         return None
+    except TypeError:
+        return None
+
