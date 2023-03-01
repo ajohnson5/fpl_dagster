@@ -1,21 +1,8 @@
-from dagster import (
-    asset,
-    Definitions,
-    io_manager,
-    StaticPartitionsDefinition,
-    resource,
-    Output,
-    configured,
-    StringSource
-)
-from dagster_gcp.gcs import gcs_resource
-from dagster_gcp import bigquery_resource
+from dagster import asset, Output,StaticPartitionsDefinition
 import pandas as pd
-import numpy as np
 import os
-from google.cloud import bigquery
-from gcs_parquet_io_manager import GCSParquetIOManager
-from fpl_getter import (
+import numpy as np
+from utils.fpl_getter import (
     gw_stats_getter,
     gw_fixture_getter,
     player_getter,
@@ -23,28 +10,11 @@ from fpl_getter import (
     gw_my_fpl_team,
 )
 
-# Define season for GCS directory structure
-SEASON = "2022"
+manager_ID = os.getenv('MANAGER_ID')
+
 # Define gameweek partition
 gameweek_list = [str(gw) for gw in range(1, 39)]
 gameweek_partitions = StaticPartitionsDefinition(gameweek_list)
-
-
-#Fixed variables (Regardless of environment)
-project_ID = os.getenv('PROJECT_ID')
-manager_ID = os.getenv('MANAGER_ID')
-deployment_environment = os.getenv("DAGSTER_DEPLOYMENT", "development")
-
-@asset(io_manager_key="gcs_io_manager")
-def player_info() -> pd.DataFrame:
-    """Uses FPL API to create DataFrame containing general player data for all Premier League players
-    such as name and team_name"""
-    player_df = pd.DataFrame(player_getter())
-    team_df = pd.DataFrame(team_getter())
-
-    merged_df = player_df.merge(team_df, how="left", on="team_id")
-    return merged_df
-
 
 @asset(
     partitions_def=gameweek_partitions,
@@ -129,73 +99,3 @@ def gw_summary(context, player_info) -> pd.DataFrame:
             gw_df.drop(columns=["gw_to_play"], inplace=True)
 
         yield Output(gw_df)
-
-
-@asset(non_argument_deps = {'gw_summary'},required_resource_keys={"bq_res", "google_config"})
-def bigquery_gw_summary(context) -> None:
-    """Loads all gw_summary Parquet files into BigQuery Table"""
-    
-    gc_config = context.resources.google_config
-    #Define job config for BQ, note we overwrite the existing table
-
-    job_config = bigquery.LoadJobConfig(
-        source_format=bigquery.SourceFormat.PARQUET, write_disposition="WRITE_TRUNCATE"
-    )
-
-    #uri to batch load all of the parquet files in the gw_summary directory
-    batch_uri = f'gs://{gc_config["bucket"]}/{SEASON}/gw_summary/*.parquet'
-
-    load_job = context.resources.bq_res.load_table_from_uri(
-        batch_uri, 
-        f'{project_ID}.{gc_config["dataset"]}.{SEASON}_gw_summary',
-        job_config=job_config
-    ) 
-
-    return None
-
-
-
-#Resource to pass google cloud credentials to assets and io_manager
-@resource(config_schema={"project_bucket":StringSource, "project_dataset":StringSource})
-def google_cloud_config(init_context):
-    return dict(bucket = init_context.resource_config['project_bucket'], dataset = init_context.resource_config['project_dataset'])
-
-
-@io_manager(required_resource_keys={'gcs', 'google_config'})
-def gcs_parquet_io_manager(init_context):
-    return GCSParquetIOManager(bucket_name = init_context.resources.google_config['bucket'], season = SEASON)
-
-
-#Configure resources for the deployment environments (development/production)
-resource_env = {
-    "development":{
-        "google_config": google_cloud_config.configured(
-            {
-                "project_bucket": {"env": "PROJECT_BUCKET_DEV"},
-                "project_dataset": {"env": "PROJECT_DATASET_DEV"}
-            }
-        ),
-        "gcs_io_manager": gcs_parquet_io_manager,
-        "gcs": gcs_resource,
-        "bq_res":bigquery_resource
-    },
-    "production":{
-            "google_config": google_cloud_config.configured(
-            {
-                "project_bucket": {"env": "PROJECT_BUCKET_PROD"},
-                "project_dataset": {"env": "PROJECT_DATASET_PROD"}
-            }
-        ),
-        "gcs_io_manager": gcs_parquet_io_manager,
-        "gcs": gcs_resource,
-        "bq_res":bigquery_resource
-    }
-
-}
-
-
-
-#Define definitions using the assets and resources for the specified deployment_environment
-defos = Definitions(
-    assets=[player_info, gw_summary, bigquery_gw_summary],
-    resources=resource_env[deployment_environment])

@@ -10,6 +10,8 @@ from dagster import (
 import gcsfs
 from google.cloud import storage
 
+# Define season for GCS directory structure
+SEASON = "2022"
 
 class GCSParquetIOManager(IOManager):
     """Custom IO Manager which stores parquet files in GCS and takes data in as a dataframe."""
@@ -49,3 +51,9 @@ class GCSParquetIOManager(IOManager):
         df = pd.read_parquet(self._get_gcs_url(context))
 
         return df
+
+
+
+@io_manager(required_resource_keys={'gcs', 'google_config'})
+def gcs_parquet_io_manager(init_context):
+    return GCSParquetIOManager(bucket_name = init_context.resources.google_config['bucket'], season = SEASON)
