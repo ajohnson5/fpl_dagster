@@ -9,7 +9,7 @@ def gw_stats_getter(gw):
     req = requests.get(url).json()
     player_list = []
     for player in req["elements"]:
-        player_list.append(dict(id=player["id"], gameweek=int(gw), **player["stats"]))
+        player_list.append({'id':player["id"], 'gameweek':int(gw), **player["stats"]})
     return player_list
 
 
@@ -24,18 +24,18 @@ def gw_fixture_getter(gw):
         for fixture in fix_req:
             # Add each team with the opponent they are facing (Note we want every team playing in the first col)
             fixture_list.append(
-                dict(
-                    gw_to_play=i,
-                    team_id=fixture["team_h"],
-                    team_against_id=fixture["team_a"],
-                )
+                {
+                    'gw_to_play':i,
+                    'team_id':fixture["team_h"],
+                    'team_against_id':fixture["team_a"],
+                }
             )
             fixture_list.append(
-                dict(
-                    gw_to_play=i,
-                    team_id=fixture["team_a"],
-                    team_against_id=fixture["team_h"],
-                )
+                {
+                    'gw_to_play':i,
+                    'team_id':fixture["team_a"],
+                    'team_against_id':fixture["team_h"],
+                }
             )
     return fixture_list
 
@@ -47,14 +47,14 @@ def player_getter():
     player_req = requests.get(player_url).json()
     player_list = []
     for element in player_req["elements"]:
-        dict_ = dict(
-            id=element["id"],
-            first_name=element["first_name"],
-            second_name=element["second_name"],
-            full_name=element["first_name"] + " " + element["second_name"],
-            team_id=element["team"],
-            position=element["element_type"],
-        )
+        dict_ = {
+            'id':element["id"],
+            'first_name':element["first_name"],
+            'second_name':element["second_name"],
+            'full_name':element["first_name"] + " " + element["second_name"],
+            'team_id':element["team"],
+            'position':element["element_type"],
+        }
         player_list.append(dict_)
     return player_list
 
@@ -66,7 +66,7 @@ def team_getter():
     team_req = requests.get(team_url).json()
     team_list = []
     for team in team_req["teams"]:
-        team_list.append(dict(team_id=team["id"], team_name=team["name"]))
+        team_list.append({'team_id':team["id"], 'team_name':team["name"]})
     return team_list
 
 
@@ -79,13 +79,13 @@ def gw_my_fpl_team(gw, manager_id):
     try:
         for player in my_fpl_req["picks"]:
             my_fpl_list.append(
-                dict(
-                    id=player["element"],
-                    my_team_position=player["position"],
-                    multiplier=player["multiplier"],
-                    is_captain=int(player["is_captain"]),
-                    is_vice_captain=int(player["is_vice_captain"]),
-                )
+                {
+                    'id':player["element"],
+                    'my_team_position':player["position"],
+                    'multiplier':player["multiplier"],
+                    'is_captain':int(player["is_captain"]),
+                    'is_vice_captain':int(player["is_vice_captain"]),
+                }
             )
         return my_fpl_list
     except KeyError:
